@@ -1,0 +1,39 @@
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseMatrix.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp parallel shared( lhs, rhs )
+math/smp/openmp/DenseVector.h://#pragma omp for schedule(dynamic,1) nowait
+math/smp/openmp/DenseVector.h://#pragma omp parallel shared( lhs, rhs )
+grep: input file ‘omp.list’ is also the output
+Tutorial.h:   #pragma omp parallel for
+Tutorial.h:   #pragma omp parallel
+Tutorial.h:   #pragma omp parallel
+Tutorial.h:   #pragma omp sections
+Tutorial.h:   #pragma omp section
+Tutorial.h:   #pragma omp section
+Tutorial.h:   #pragma omp sections
+Tutorial.h:   #pragma omp section
+Tutorial.h:   #pragma omp section

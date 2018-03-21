@@ -1,0 +1,60 @@
+RM := rm -f
+
+#CXX := clang++-3.6
+#CXX := mpicxx -march=native -mtune=native
+#CXX := nvcc -lpthread -L/home/hvictor/bin/openmpi-1.10.2/lib -lmpi_cxx -lmpi
+#CXX := g++ -march=native -mtune=native -Iinclude -std=c++11 -DNDEBUG
+#CXX := g++ -march=native -mtune=native -Iinclude -std=c++11
+CXX := g++
+NVCC := nvcc
+
+-include src/domain/subdir.mk
+
+-include src/utilities/subdir.mk
+-include src/configuration/subdir.mk
+-include src/topology/subdir.mk
+
+-include src/interaction/subdir.mk
+-include src/interaction/pairlist/subdir.mk
+-include src/interaction/nonbonded/subdir.mk
+
+-include src/simulation/subdir.mk
+-include src/simulation/integrator/subdir.mk
+
+-include src/files/subdir.mk
+-include src/subdir.mk
+
+#
+# Provided Thrust directory
+#
+THRUSTINC := -I$(PWD)/include
+
+#
+# Should be changed properly
+#
+TBBINC := -I$(PWD)/include/tbb/include
+TBBLIB := -L$(PWD)/include/tbb/lib
+
+#CXXFLAGS := -O3 -Wall -funroll-all-loops -finline-functions -msse4.2
+#CXXFLAGS := -O3 -Wall -funroll-all-loops -finline-functions
+#CXXFLAGS := -g -fsanitize=memory -fsanitize-memory-track-origins -g -std=c++11
+#CXXFLAGS := -g -fsanitize=address -g -std=c++11
+#CXXFLAGS := -O3 -Wall -pg -g
+#CXXFLAGS := -O3  -funroll-all-loops -finline-functions
+#CXXFLAGS := -O3 -march=native -mtune=native -DNDEBUG -std=c++11 -I/home/hvictor/Projects/blaze/
+#CXXFLAGS := -O3 -Iinclude -march=native -mtune=native -DNDEBUG -std=c++11
+CXXFLAGS := -O3 -Iinclude -DNDEBUG -std=c++11
+
+CXXLANGDETECTION := -x c++
+
+
+# LDFLAGS := -ipo -ifo -flto
+#LDFLAGS := -flto
+LDFLAGS :=
+
+#
+# Should not be changed
+#
+THRUSTOMP  := -DThrust -DThrustOMP -fopenmp -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP -lgomp
+THRUSTTBB  := -DThrust -DThrustTBB -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_TBB -ltbb $(TBBINC) $(TBBLIB)
+THRUSTCUDA := -DThrust -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CUDA
