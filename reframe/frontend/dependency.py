@@ -117,7 +117,10 @@ def build_deps(cases, default_cases=None):
 
 def print_deps(graph):
     for c, deps in graph.items():
-        print(c, '->', deps)
+        ret = []
+        for d in deps:
+            ret.append(d.check.name)
+        print(c, '->', ret)
 
 
 def _reduce_deps(graph):
@@ -172,6 +175,56 @@ def validate_deps(graph):
             visited.add(node)
 
         sources -= visited
+
+
+# FIXME This is a replica of the toposort method.
+# There must be a cleaverer way of getting this info
+def toposortdepth(graph, is_subgraph=False):
+    '''Return a list of the graph nodes topologically sorted, with info about
+    the node's depht and dependencies.
+
+    If ``is_subgraph`` is ``True``, graph will by treated a subgraph, meaning
+    that any dangling edges will be ignored.
+    '''
+    visited = collections.OrderedDict()
+    max_depth = 0
+
+    def retrieve(d, key, default):
+        try:
+            return d[key]
+        except KeyError:
+            if is_subgraph:
+                return default
+            else:
+                raise
+
+    def visit(node, path, level):
+        # We assume an acyclic graph
+        assert node not in path
+
+        path.add(node)
+        nonlocal max_depth
+
+        # Do a DFS visit of all the adjacent nodes
+        depth = 0
+        for adj in graph[node]:
+            if adj not in visited:
+                visit(adj, path, level+1)
+            else:
+                depth = max(depth, visited[adj]['depth'] + 1)
+
+        path.pop()
+        visited[node] = {
+            'depth': max(level, depth),
+            'depends' : [adj for adj in graph[node]]
+        }
+        max_depth = max(level, depth, max_depth)
+
+    for node in graph.keys():
+        if node not in visited:
+            visit(node, util.OrderedSet(), 0)
+
+    return visited, max_depth
 
 
 def toposort(graph, is_subgraph=False):
