@@ -229,10 +229,10 @@ class RunHelloWorldBaseTest(rfm.RunOnlyRegressionTest):
         self.tags = {'production', 'craype'}
 
 
-# @rfm.required_version('>=2.14')
-# @rfm.parameterized_test(*([lang, linkage]
-#                           for lang in ['cpp', 'c', 'f90']
-#                           for linkage in ['dynamic', 'static']))
+@rfm.required_version('>=2.14')
+@rfm.parameterized_test(*([lang, linkage]
+                          for lang in ['cpp', 'c', 'f90']
+                          for linkage in ['dynamic', 'static']))
 class RunHelloWorldTestSerial(RunHelloWorldBaseTest):
     def __init__(self, lang, linkage):
         super().__init__('serial', lang, linkage)
@@ -264,92 +264,19 @@ class RunHelloWorldTestSerial(RunHelloWorldBaseTest):
                                          'PrgEnv-gnu-nompi',
                                          'PrgEnv-gnu-nompi-nocuda']
 
-        self.dep_name = f'CompileHelloWorldTestSerial_{lang}_{linkage}'
+        self.dep_name = re.sub(r'Run', r'Compile', self.name)
         self.depends_on(self.dep_name)
 
-
-@rfm.simple_test
-class RunHelloWorldTestSerial_cpp_dynamic(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('cpp', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_cpp_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_cpp_dynamic().stagedir,
-            'hello_world'
-        )
+    @rfm.run_after('setup')
+    def set_executable(self):
+        target = self.getdep(self.dep_name)
+        self.executable = os.path.join(target.stagedir, 'hello_world')
 
 
-@rfm.simple_test
-class RunHelloWorldTestSerial_c_dynamic(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('c', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_c_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_c_dynamic().stagedir,
-            'hello_world'
-        )
-
-
-@rfm.simple_test
-class RunHelloWorldTestSerial_f90_dynamic(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('f90', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_f90_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_f90_dynamic().stagedir,
-            'hello_world'
-        )
-
-
-@rfm.simple_test
-class RunHelloWorldTestSerial_cpp_static(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('cpp', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_cpp_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_cpp_static().stagedir,
-            'hello_world'
-        )
-
-
-@rfm.simple_test
-class RunHelloWorldTestSerial_c_static(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('c', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_c_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_c_static().stagedir,
-            'hello_world'
-        )
-
-
-@rfm.simple_test
-class RunHelloWorldTestSerial_f90_static(RunHelloWorldTestSerial):
-    def __init__(self):
-        super().__init__('f90', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestSerial_f90_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestSerial_f90_static().stagedir,
-            'hello_world'
-        )
-
-
-# @rfm.required_version('>=2.14')
-# @rfm.parameterized_test(*([lang, linkage]
-#                           for lang in ['cpp', 'c', 'f90']
-#                           for linkage in ['dynamic', 'static']))
+@rfm.required_version('>=2.14')
+@rfm.parameterized_test(*([lang, linkage]
+                          for lang in ['cpp', 'c', 'f90']
+                          for linkage in ['dynamic', 'static']))
 class RunHelloWorldTestOpenMP(RunHelloWorldBaseTest):
     def __init__(self, lang, linkage):
         super().__init__('openmp', lang, linkage)
@@ -387,101 +314,10 @@ class RunHelloWorldTestOpenMP(RunHelloWorldBaseTest):
             'OMP_NUM_THREADS': str(self.num_cpus_per_task)
         }
 
-        self.dep_name = f'CompileHelloWorldTestOpenMP_{lang}_{linkage}'
+        self.dep_name = re.sub(r'Run', r'Compile', self.name)
         self.depends_on(self.dep_name)
 
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_cpp_dynamic):
-        if self.dep_name == f'CompileHelloWorldTestOpenMP_{self.lang}_{self.linkage}':
-            self.executable = os.path.join(
-                CompileHelloWorldTestOpenMP_cpp_dynamic().stagedir,
-                'hello_world'
-            )
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_c_dynamic):
-        if self.dep_name == f'CompileHelloWorldTestOpenMP_{self.lang}_{self.linkage}':
-            self.executable = os.path.join(
-                CompileHelloWorldTestOpenMP_c_dynamic().stagedir,
-                'hello_world'
-            )
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_f90_dynamic):
-        if self.dep_name == f'CompileHelloWorldTestOpenMP_{self.lang}_{self.linkage}':
-            self.executable = os.path.join(
-                CompileHelloWorldTestOpenMP_f90_dynamic().stagedir,
-                'hello_world'
-            )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_cpp_dynamic(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('cpp', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_cpp_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_cpp_dynamic().stagedir,
-            'hello_world'
-        )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_c_dynamic(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('c', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_c_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_c_dynamic().stagedir,
-            'hello_world'
-        )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_f90_dynamic(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('f90', 'dynamic')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_f90_dynamic):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_f90_dynamic().stagedir,
-            'hello_world'
-        )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_cpp_static(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('cpp', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_cpp_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_cpp_static().stagedir,
-            'hello_world'
-        )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_c_static(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('c', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_c_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_c_static().stagedir,
-            'hello_world'
-        )
-
-@rfm.simple_test
-class RunHelloWorldTestOpenMP_f90_static(RunHelloWorldTestOpenMP):
-    def __init__(self):
-        super().__init__('f90', 'static')
-
-    @rfm.require_deps
-    def set_executable(self, CompileHelloWorldTestOpenMP_f90_static):
-        self.executable = os.path.join(
-            CompileHelloWorldTestOpenMP_f90_static().stagedir,
-            'hello_world'
-        )
+    @rfm.run_after('setup')
+    def set_executable(self):
+        target = self.getdep(self.dep_name)
+        self.executable = os.path.join(target.stagedir, 'hello_world')

@@ -176,10 +176,13 @@ class GromacsCPUCheck(GromacsBaseCheck):
     def __init__(self, dependency):
         super().__init__('md.log')
         # This is limitation of the dependency per partition
-        self.valid_systems = ['daint:gpu','dom:gpu']
+        self.valid_systems = ['daint:gpu','dom:gpu', '*']
         # settings for the openmp case
         self.num_tasks = 1
-        self.num_tasks_per_node = 12
+        if self.valid_systems in ['daint:gpu', 'dom:gpu']:
+            self.num_tasks_per_node = 12
+        else:
+            self.num_tasks_per_node = os.cpu_count()
 
         self.descr = 'GROMACS CPU check'
         self.executable_opts = ['mdrun', '-dlb yes',
