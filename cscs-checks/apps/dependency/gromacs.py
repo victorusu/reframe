@@ -26,7 +26,7 @@ class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
 
         self.variant = variant
 
-        self.valid_systems = ['daint:gpu','dom:gpu']
+        self.valid_systems = ['daint:gpu','dom:gpu', '*']
         self.modules = ['CMake'] # system's cmake it too old
 
         if 'gnu' in self.variant:
@@ -37,6 +37,8 @@ class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
             self.valid_prog_environs += ['PrgEnv-cray']
         elif 'pgi' in self.variant:
             self.valid_prog_environs += ['PrgEnv-pgi']
+        else:
+            self.valid_prog_environs += ['builtin']
 
         mpi = 'ON' if 'mpi' in self.variant else 'OFF'
         openmp = 'ON' if 'openmp' in self.variant else 'OFF'
@@ -192,6 +194,8 @@ class GromacsCPUCheck(GromacsBaseCheck):
             self.valid_prog_environs += ['PrgEnv-cray']
         elif 'pgi' in dependency:
             self.valid_prog_environs += ['PrgEnv-pgi']
+        else:
+            self.valid_prog_environs += ['builtin']
 
         # this I love
         self.depends_on("CompileGROMACSMasterTest_" + util.toalphanum(dependency))
