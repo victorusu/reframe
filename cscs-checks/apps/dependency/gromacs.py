@@ -6,6 +6,7 @@
 import contextlib
 import itertools
 import os
+import re
 import fnmatch
 from datetime import datetime
 
@@ -14,20 +15,34 @@ import reframe.utility.sanity as sn
 import reframe.utility as util
 from reframe.core.backends import getlauncher
 
+# PARAMETERISED_TESTS = [
+#     ['mpi+ownfftw+shared+gnu'],
+#     ['openmp+ownfftw+shared+gnu'],
+#     ['cuda+ownfftw+shared+gnu'],
+#     ['mpi+cuda+ownfftw+shared+gnu'],
+#     ['mpi+openmp+cuda+ownfftw+shared+gnu'],
+#     ['openmp+cuda+ownfftw+shared+gnu']
+# ]
+
+PARAMETERISED_TESTS = [
+    'openmp+cuda+ownfftw+shared+gnu'
+]
+def check_parameter(parameter):
+    return parameter
+
 # @rfm.parameterized_test(['mpi+ownfftw+shared+gnu'],
 #                         ['openmp+ownfftw+shared+gnu'],
 #                         ['cuda+ownfftw+shared+gnu'],
 #                         ['mpi+cuda+ownfftw+shared+gnu'],
 #                         ['mpi+openmp+cuda+ownfftw+shared+gnu'],
 #                         ['openmp+cuda+ownfftw+shared+gnu'])
-@rfm.parameterized_test(['openmp+ownfftw+shared+gnu'])
+@rfm.parameterized_test(PARAMETERISED_TESTS)
 class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
     def __init__(self, variant):
-
         self.variant = variant
 
-        self.valid_systems = ['daint:gpu','dom:gpu', '*']
-        self.modules = ['CMake'] # system's cmake it too old
+        self.valid_systems = ['daint:gpu']
+        self.modules = ['daint-gpu', 'CMake'] # system's cmake it too old
 
         if 'gnu' in self.variant:
             self.valid_prog_environs += ['PrgEnv-gnu']
@@ -47,6 +62,9 @@ class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
             cuda = 'CUDA'
             cuda_opts = '-DCUDA_TOOLKIT_ROOT_DIR=$CUDATOOLKIT_HOME '
             self.modules += ['cudatoolkit']
+            self.variables = {
+                'CUDA_HOME': '$CUDATOOLKIT_HOME'
+            }
         else:
             cuda = 'OFF'
             cuda_opts = ''
@@ -171,12 +189,15 @@ class GromacsBaseCheck(rfm.RunOnlyRegressionTest):
 
 
 @rfm.required_version('>=2.19')
-@rfm.parameterized_test(['openmp+ownfftw+shared+gnu'])
+@rfm.parameterized_test(PARAMETERISED_TESTS)
 class GromacsCPUCheck(GromacsBaseCheck):
-    def __init__(self, dependency):
+    def __init__(self, variant):
         super().__init__('md.log')
-        # This is limitation of the dependency per partition
-        self.valid_systems = ['daint:gpu','dom:gpu', '*']
+        self.variant = variant
+
+        # This is limitation of the variant per partition
+        self.valid_systems = ['daint:gpu','dom:gpu']
+
         # settings for the openmp case
         self.num_tasks = 1
         if self.valid_systems in ['daint:gpu', 'dom:gpu']:
@@ -185,34 +206,37 @@ class GromacsCPUCheck(GromacsBaseCheck):
             self.num_tasks_per_node = os.cpu_count()
 
         self.descr = 'GROMACS CPU check'
+
+        nb_type = 'cpu'
+        if 'cuda' in self.variant:
+            nb_type = 'gpu'
         self.executable_opts = ['mdrun', '-dlb yes',
                                 f'-ntomp {self.num_tasks_per_node}', '-npme -1',
-                                '-nb cpu', '-s herflat.tpr']
+                                f'-nb {nb_type}', '-s herflat.tpr']
 
-        if 'gnu' in dependency:
+        if 'gnu' in variant:
             self.valid_prog_environs += ['PrgEnv-gnu']
-        elif 'intel' in dependency:
+        elif 'intel' in variant:
             self.valid_prog_environs += ['PrgEnv-intel']
-        elif 'cce' in dependency:
+        elif 'cce' in variant:
             self.valid_prog_environs += ['PrgEnv-cray']
-        elif 'pgi' in dependency:
+        elif 'pgi' in variant:
             self.valid_prog_environs += ['PrgEnv-pgi']
         else:
             self.valid_prog_environs += ['builtin']
 
-        # this I love
-        self.depends_on("CompileGROMACSMasterTest_" + util.toalphanum(dependency))
-
+        self.dep_name = re.sub(r'GromacsCPUCheck', r'CompileGROMACSMasterTest', self.name)
+        self.depends_on(self.dep_name)
 
         self.reference = {
             'dom:gpu': {'perf': (40.0, -0.05, None, 'ns/day')},
             'daint:gpu': {'perf': (38.8, -0.10, None, 'ns/day')}
         }
 
-    @rfm.require_deps
-    # this I hate!
-    def set_executable(self, CompileGROMACSMasterTest_openmp_ownfftw_shared_gnu):
-        self.executable = os.path.join(
-            CompileGROMACSMasterTest_openmp_ownfftw_shared_gnu().stagedir,
-            'gmx'
-        )
+    @rfm.run_after('setup')
+    def set_executable(self):
+        target = self.getdep(self.dep_name)
+        if 'mpi' in self.variant:
+            self.executable = os.path.join(target.stagedir, 'gmx_mpi')
+        else:
+            self.executable = os.path.join(target.stagedir, 'gmx')

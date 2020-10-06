@@ -25,10 +25,9 @@ class CompileHelloWorldBaseTest(rfm.CompileOnlyRegressionTest):
         self.sourcepath = 'hello_world'
         self.executable = './hello_world'
         self.build_system = 'SingleSource'
-        # self.valid_systems = ['daint:gpu']
-        self.valid_systems = ['daint:gpu', 'daint:mc', 'dom:gpu', 'dom:mc',
-                              'kesch:cn', 'tiger:gpu', 'arolla:cn',
-                              'arolla:pn', 'tsa:cn', 'tsa:pn']
+        self.valid_systems = ['daint:login', 'dom:login',
+                              'kesch:login', 'tiger:login', 'arolla:login',
+                              'tsa:login']
 
         self.valid_prog_environs = ['PrgEnv-cray',
                                     'PrgEnv-intel', 'PrgEnv-gnu', 'PrgEnv-pgi',
@@ -171,7 +170,6 @@ class RunHelloWorldBaseTest(rfm.RunOnlyRegressionTest):
         }
 
         self.descr = f'{self.lang_names[lang]} Hello World'
-        # self.valid_systems = ['daint:gpu']
         self.valid_systems = ['daint:gpu', 'daint:mc', 'dom:gpu', 'dom:mc',
                               'kesch:cn', 'tiger:gpu', 'arolla:cn',
                               'arolla:pn', 'tsa:cn', 'tsa:pn']
@@ -265,11 +263,12 @@ class RunHelloWorldTestSerial(RunHelloWorldBaseTest):
                                          'PrgEnv-gnu-nompi-nocuda']
 
         self.dep_name = re.sub(r'Run', r'Compile', self.name)
-        self.depends_on(self.dep_name)
+        self.depends_on(self.dep_name, how=rfm.DEPEND_BY_ENV)
 
     @rfm.run_after('setup')
     def set_executable(self):
         target = self.getdep(self.dep_name)
+        # target = self.depends_on(self.dep_name, how=rfm.DEPEND_BY_ENV)
         self.executable = os.path.join(target.stagedir, 'hello_world')
 
 
@@ -315,9 +314,10 @@ class RunHelloWorldTestOpenMP(RunHelloWorldBaseTest):
         }
 
         self.dep_name = re.sub(r'Run', r'Compile', self.name)
-        self.depends_on(self.dep_name)
+        self.depends_on(self.dep_name, how=rfm.DEPEND_BY_ENV)
 
     @rfm.run_after('setup')
     def set_executable(self):
         target = self.getdep(self.dep_name)
+        # target = self.depends_on(self.dep_name, how=rfm.DEPEND_BY_ENV)
         self.executable = os.path.join(target.stagedir, 'hello_world')
