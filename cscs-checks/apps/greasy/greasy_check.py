@@ -237,3 +237,86 @@ class GREASYCheck(rfm.RegressionTest):
         ))
 
         return True
+
+
+@rfm.required_version('>=2.19')
+@rfm.parameterized_test(*([s, v]
+                          for s in ['small', 'large']
+                          for v in ['prod', 'maint']))
+class GREASYGROMACSGPUCheck(rfm.RegressionTest):
+    def __init__(self, scale, variant):
+        self.valid_prog_environs = ['builtin']
+        self.executable = 'gmx_mpi'
+
+        output_file = 'md.log'
+
+        # Reset sources dir relative to the SCS apps prefix
+        self.sourcesdir = os.path.join(self.current_system.resourcesdir,
+                                       'Gromacs', 'herflat')
+        self.keep_files = [output_file]
+
+        energy = sn.extractsingle(r'\s+Potential\s+Kinetic En\.\s+Total Energy'
+                                  r'\s+Conserved En\.\s+Temperature\n'
+                                  r'(\s+\S+){2}\s+(?P<energy>\S+)(\s+\S+){2}\n'
+                                  r'\s+Pressure \(bar\)\s+Constr\. rmsd',
+                                  output_file, 'energy', float, item=-1)
+        energy_reference = -3270799.9
+
+        self.sanity_patterns = sn.all([
+            sn.assert_found('Finished mdrun', output_file),
+            sn.assert_reference(energy, energy_reference, -0.001, 0.001)
+        ])
+
+        self.perf_patterns = {
+            'perf': sn.extractsingle(r'Performance:\s+(?P<perf>\S+)',
+                                     output_file, 'perf', float)
+        }
+
+        self.valid_systems = ['daint:gpu']
+        self.descr = 'GROMACS GPU check'
+        self.executable_opts = ['mdrun', '-dlb yes', '-ntomp 1', '-npme 0',
+                                '-s herflat.tpr']
+        self.variables = {'CRAY_CUDA_MPS': '1'}
+        self.num_gpus_per_node = 1
+        if scale == 'small':
+            self.valid_systems += ['dom:gpu']
+            self.num_tasks = 72
+            self.num_tasks_per_node = 12
+        else:
+            self.num_tasks = 192
+            self.num_tasks_per_node = 12
+
+        self.tasks_file = 'tasks-gromacs.txt'
+        self.executable_opts = [self.tasks_file]
+        self.greasy_logfile = 'greasy.log'
+        self.keep_files = [self.tasks_file, self.greasy_logfile]
+        nnodes = 2
+        self.use_multithreading = False
+        self.num_greasy_tasks = num_greasy_tasks
+        self.nworkes_per_node = nworkes_per_node
+        self.nranks_per_worker = nranks_per_worker
+        self.num_tasks_per_node = nranks_per_worker * nworkes_per_node
+        self.num_tasks = self.num_tasks_per_node * nnodes
+        self.num_cpus_per_task = ncpus_per_worker
+        self.sanity_patterns = self.eval_sanity()
+
+        references = {
+            'maint': {
+                'large': {
+                    'daint:gpu': {'perf': (73.4, -0.10, None, 'ns/day')}
+                }
+            },
+            'prod': {
+                'small': {
+                    'dom:gpu': {'perf': (37.0, -0.05, None, 'ns/day')},
+                    'daint:gpu': {'perf': (35.0, -0.10, None, 'ns/day')}
+                },
+                'large': {
+                    'daint:gpu': {'perf': (63.0, -0.20, None, 'ns/day')}
+                }
+            },
+        }
+        with contextlib.suppress(KeyError):
+            self.reference = references[variant][scale]
+
+        self.tags |= {'maintenance' if variant == 'maint' else 'production'}
