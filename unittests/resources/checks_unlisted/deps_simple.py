@@ -17,13 +17,12 @@ class Test0(rfm.RunOnlyRegressionTest):
         self.sanity_patterns = sn.assert_found(self.name, self.stdout)
 
 
-@rfm.parameterized_test(*([kind] for kind in ['fully', 'by_part', 'by_env',
+@rfm.parameterized_test(*([kind] for kind in ['fully', 'by_env',
                                               'exact', 'default']))
 class Test1(rfm.RunOnlyRegressionTest):
     def __init__(self, kind):
         kindspec = {
             'fully': rfm.DEPEND_FULLY,
-            'by_part': rfm.DEPEND_BY_PARTITION,
             'by_env': rfm.DEPEND_BY_ENV,
             'exact': rfm.DEPEND_EXACT,
         }
@@ -36,7 +35,6 @@ class Test1(rfm.RunOnlyRegressionTest):
             self.depends_on('Test0')
         elif kindspec[kind] == rfm.DEPEND_EXACT:
             self.depends_on('Test0', kindspec[kind],
-                            {('p0', 'e0'): [('p0', 'e0'), ('p1', 'e1')],
-                             ('p1', 'e1'): [('p0', 'e1')]})
+                            {'e0': ['e0', 'e1'], 'e1': ['e1']})
         else:
             self.depends_on('Test0', kindspec[kind])
