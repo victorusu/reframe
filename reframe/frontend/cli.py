@@ -129,7 +129,7 @@ def generate_ci_pipeline_file(ci_pipeline_file, testgraph, site_config):
         # can have the : char, for example
         return util.toalphanum(cname + "_" + pname + "_" + ename)
 
-    tests, graphdepth = dependency.toposortdepth(testgraph)
+    tests, graphdepth = dependencies.toposortdepth(testgraph)
     # TODO Should be using py-yaml lib here
     with open(ci_pipeline_file, 'w') as pipeline_file:
         pipeline_file.write('stages:\n')
