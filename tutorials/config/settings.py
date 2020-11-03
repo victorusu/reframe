@@ -33,7 +33,7 @@ site_configuration = {
                     'descr': 'Login nodes',
                     'scheduler': 'local',
                     'launcher': 'local',
-                    'environs': ['gnu', 'intel', 'pgi', 'cray'],
+                    'environs': ['gnu', 'intel', 'pgi', 'cray', 'builtin'],
                 },
                 {
                     'name': 'gpu',
@@ -139,7 +139,6 @@ site_configuration = {
                 },
                 {
                     'type': 'file',
-                    'name': 'reframe.log',
                     'level': 'debug',
                     'format': '[%(asctime)s] %(levelname)s: %(check_info)s: %(message)s',   # noqa: E501
                     'append': False

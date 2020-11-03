@@ -16,9 +16,8 @@ import sys
 import socket
 import time
 
-import reframe
 import reframe.utility.color as color
-import reframe.utility.os_ext as os_ext
+import reframe.utility.osext as osext
 from reframe.core.exceptions import ConfigError, LoggingError
 
 
@@ -194,7 +193,10 @@ def _create_logger(site_config, handlers_group):
 
 
 def _create_file_handler(site_config, config_prefix):
-    filename = site_config.get(f'{config_prefix}/name')
+    filename = os.path.expandvars(site_config.get(f'{config_prefix}/name'))
+    if not filename:
+        filename = osext.mkstemp_path(suffix='.log', prefix='rfm-')
+
     timestamp = site_config.get(f'{config_prefix}/timestamp')
     if timestamp:
         basename, ext = os.path.splitext(filename)
@@ -397,10 +399,10 @@ class LoggerAdapter(logging.LoggerAdapter):
                 'check_perf_lower_thres': None,
                 'check_perf_upper_thres': None,
                 'check_perf_unit': None,
-                'osuser':  os_ext.osuser()  or '<unknown>',
-                'osgroup': os_ext.osgroup() or '<unknown>',
+                'osuser':  osext.osuser()  or '<unknown>',
+                'osgroup': osext.osgroup() or '<unknown>',
                 'check_tags': None,
-                'version': os_ext.reframe_version(),
+                'version': osext.reframe_version(),
             }
         )
         self.check = check
@@ -551,11 +553,15 @@ def configure_logging(site_config):
     _context_logger = LoggerAdapter(_logger)
 
 
+def log_files():
+    return [hdlr.baseFilename for hdlr in _logger.handlers
+            if isinstance(hdlr, logging.FileHandler)]
+
+
 def save_log_files(dest):
     os.makedirs(dest, exist_ok=True)
-    for hdlr in _logger.handlers:
-        if isinstance(hdlr, logging.FileHandler):
-            shutil.copy(hdlr.baseFilename, dest, follow_symlinks=True)
+    return [shutil.copy(logfile, dest, follow_symlinks=True)
+            for logfile in log_files()]
 
 
 def getlogger():

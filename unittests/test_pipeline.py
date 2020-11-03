@@ -10,7 +10,7 @@ import re
 
 import reframe as rfm
 import reframe.core.runtime as rt
-import reframe.utility.os_ext as os_ext
+import reframe.utility.osext as osext
 import reframe.utility.sanity as sn
 import unittests.fixtures as fixtures
 from reframe.core.exceptions import (BuildError, PipelineError, ReframeError,
@@ -646,7 +646,7 @@ def test_disabled_hooks(local_exec_ctx):
 
 
 def test_require_deps(local_exec_ctx):
-    import reframe.frontend.dependency as dependency
+    import reframe.frontend.dependencies as dependencies
     import reframe.frontend.executors as executors
 
     @fixtures.custom_prefix('unittests/resources/checks')
@@ -675,8 +675,8 @@ def test_require_deps(local_exec_ctx):
             self.z = T0().x + 2
 
     cases = executors.generate_testcases([T0(), T1()])
-    deps = dependency.build_deps(cases)
-    for c in dependency.toposort(deps):
+    deps = dependencies.build_deps(cases)
+    for c in dependencies.toposort(deps):
         _run(*c)
 
     for c in cases:
@@ -1086,7 +1086,7 @@ def container_test(tmp_path):
 
 
 def _cray_cle_version():
-    completed = os_ext.run_command('cat /etc/opt/cray/release/cle-release')
+    completed = osext.run_command('cat /etc/opt/cray/release/cle-release')
     matched = re.match(r'^RELEASE=(\S+)', completed.stdout)
     if matched is None:
         return None
