@@ -1,0 +1,30 @@
+easyblock = 'ConfigureMake'
+
+name = 'zlib'
+version = '{{version}}'
+{% if version_suffix %}versionsuffix = '{{version_suffix}}'{% endif %}
+
+homepage = 'http://www.zlib.net/'
+description = """
+    zlib is designed to be a free, general-purpose, legally unencumbered --
+    that is, not covered by any patents -- lossless data-compression library
+    for use on virtually any computer hardware and operating system.
+"""
+
+{% if toolchain == 'system' %}
+toolchain = SYSTEM
+{% else %}
+toolchain = {'name': '{{toolchain}}', 'version': '{{toolchain_version}}'}
+toolchainopts = {'pic': True, 'dynamic': {%if shared %}True{%else%}False{%endif%}}
+{% endif %}
+
+source_urls = [('http://sourceforge.net/projects/libpng/files/%(name)s/%(version)s', 'download')]
+sources = [SOURCELOWER_TAR_GZ]
+
+
+sanity_check_paths = {
+    'files': ['include/zconf.h', 'include/%(name)s.h', 'lib/libz.a', 'lib/libz.so'],
+    'dirs': [],
+}
+
+moduleclass = 'lib'

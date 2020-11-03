@@ -1,0 +1,54 @@
+# contributed by Victor Holanda Rusu (CSCS)
+easyblock = 'CMakeMake'
+
+name = 'GROMACS'
+version = '{{gromacs_version}}'
+{% if version_suffix %}versionsuffix = '{{version_suffix}}'{% endif %}
+
+homepage = 'http://www.gromacs.org'
+description = """GROMACS is a versatile package to perform molecular dynamics,
+ i.e. simulate the Newtonian equations of motion for systems with hundreds to
+ millions of particles."""
+
+toolchain = {'name': '{{toolchain}}', 'version': '{{toolchain_version}}'}
+toolchainopts = {'opt': True, 'usempi': True, 'verbose': False, 'pic': True, 'dynamic': False, 'openmp': True}
+
+source_urls = ['ftp://ftp.%(namelower)s.org/pub/%(namelower)s/']
+sources = [SOURCELOWER_TAR_GZ]
+
+# CMake dependency with dummy toolchain
+builddependencies = [
+    ('{{cmake}}', '{{cmake_version}}', '', True),
+]
+
+{% if cuda_module -%}
+
+dependencies = [
+    ('{{cuda_module}}', EXTERNAL_MODULE),
+]
+
+{% endif -%}
+
+local_common_configopts  = '{{buildtype}}'
+local_common_configopts += '{{subcounters}}'
+local_common_configopts += '{{gpu}}'
+local_common_configopts += '{{ownfftw}}'
+local_common_configopts += '{{shared}}'
+local_common_configopts += '{{openmp}}'
+local_common_configopts += '{{simd}}'
+
+configopts = [
+    # single precision
+    local_common_configopts + ' -DGMX_MPI=OFF',
+    local_common_configopts + ' -DGMX_MPI=ON',
+
+{%- if not cuda_module %}
+    # double precision
+    local_common_configopts + ' -DGMX_MPI=OFF -DGMX_DOUBLE=ON -DGMX_DEFAULT_SUFFIX=OFF -DGMX_BINARY_SUFFIX=_d     -DGMX_LIBS_SUFFIX=_d',
+    local_common_configopts + ' -DGMX_MPI=ON  -DGMX_DOUBLE=ON -DGMX_DEFAULT_SUFFIX=OFF -DGMX_BINARY_SUFFIX=_mpi_d -DGMX_LIBS_SUFFIX=_mpi_d',
+{%- endif %}
+]
+
+skipsteps = ['test']
+
+moduleclass = 'bio'

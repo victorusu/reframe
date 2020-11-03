@@ -15,56 +15,115 @@ import reframe.utility.sanity as sn
 import reframe.utility as util
 from reframe.core.backends import getlauncher
 
-# PARAMETERISED_TESTS = [
-#     ['mpi+ownfftw+shared+gnu'],
-#     ['openmp+ownfftw+shared+gnu'],
-#     ['cuda+ownfftw+shared+gnu'],
-#     ['mpi+cuda+ownfftw+shared+gnu'],
-#     ['mpi+openmp+cuda+ownfftw+shared+gnu'],
-#     ['openmp+cuda+ownfftw+shared+gnu']
-# ]
+# GROMACS_INSTALLATION_PREFIX = '/scratch/snx3000tds/hvictor/reframe-spack-tests'
+GROMACS_INSTALLATION_PREFIX = '/scratch/snx3000/hvictor/reframe-run/gromacs'
 
 PARAMETERISED_TESTS = [
-    'openmp+cuda+ownfftw+shared+gnu'
+    # ['mpi+openmp+cuda+ownfftw+shared+gnu', '2020.1', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+gnu', '2020.2', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+gnu', '2020.3', 'prod'],
+    ['mpi+openmp+cuda+ownfftw+shared+gnu', '2020.4', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+gnu', '2019.6', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+gnu', '2018.8', 'prod'],
+
+    # ['mpi+openmp+cuda+ownfftw+gnu', '2020.4', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+gnu', '2019.6', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+gnu', '2018.8', 'prod'],
+
+    # ['mpi+openmp+cuda+ownfftw+shared+intel', '2020.4', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+intel', '2019.6', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+shared+intel', '2018.8', 'prod'],
+
+    # ['mpi+openmp+cuda+ownfftw+intel', '2020.4', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+intel', '2019.6', 'prod'],
+    # ['mpi+openmp+cuda+ownfftw+intel', '2018.8', 'prod'],
 ]
-def check_parameter(parameter):
-    return parameter
 
-# @rfm.parameterized_test(['mpi+ownfftw+shared+gnu'],
-#                         ['openmp+ownfftw+shared+gnu'],
-#                         ['cuda+ownfftw+shared+gnu'],
-#                         ['mpi+cuda+ownfftw+shared+gnu'],
-#                         ['mpi+openmp+cuda+ownfftw+shared+gnu'],
-#                         ['openmp+cuda+ownfftw+shared+gnu'])
-@rfm.parameterized_test(PARAMETERISED_TESTS)
-class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
-    def __init__(self, variant):
+
+def parent_part_env(part, env):
+    def _parent_part_env(src, dst):
+        if dst:
+            return dst[0].split(':')[1] == part and dst[1] == env
+        return False
+    return _parent_part_env
+
+
+def download_gromacs(version):
+    cmds = []
+    cmds += [f'wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-{version}.tar.gz']
+    cmds += [f'tar xf gromacs-{version}.tar.gz']
+    cmds += [f'cd gromacs-{version}']
+    return cmds
+
+
+def get_prgenv(variant):
+    prgenv = 'builtin'
+    if 'gnu' in variant:
+        prgenv= 'PrgEnv-gnu'
+    elif 'intel' in variant:
+        prgenv = 'PrgEnv-intel'
+    elif 'cce' in variant:
+        prgenv = 'PrgEnv-cray'
+    elif 'pgi' in variant:
+        prgenv = 'PrgEnv-pgi'
+
+    return prgenv
+
+
+def get_installation_path(check):
+    install_path = os.path.join(check.variant,
+                                f'gromacs-{check.gromacs_version}',
+                                f'{util.toalphanum(check.variant)}')
+    if check.install_type in ['stage']:
+        install_path = check.stagedir
+    elif check.install_type in ['output']:
+        install_path = check.outputdir
+    elif check.install_type in ['prod']:
+        install_path = os.path.join(GROMACS_INSTALLATION_PREFIX,
+                                    f'gromacs-{check.gromacs_version}',
+                                    f'{util.toalphanum(check.variant)}')
+
+    return install_path
+
+
+def clone_or_download_gromacs(gromacs_version):
+    if gromacs_version in ['develop', 'latest'] or len(gromacs_version) > 7:
+        cmds = [
+            f'git clone https://gitlab.com/gromacs/gromacs.git gromacs-{gromacs_version}',
+            f'cd gromacs-{gromacs_version}'
+        ]
+        if len(gromacs_version) > 7:
+            cmds += [
+                f'git checkout -b {gromacs_version} {gromacs_version}'
+            ]
+    else:
+        cmds = [
+            f'wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-{version}.tar.gz',
+            f'tar xf gromacs-{gromacs_version}.tar.gz',
+            f'cd gromacs-{gromacs_version}'
+        ]
+    return cmds
+
+
+@rfm.parameterized_test(*PARAMETERISED_TESTS)
+class CompileGROMACSTest(rfm.CompileOnlyRegressionTest):
+    def __init__(self, variant, gromacs_version, installation_type):
         self.variant = variant
+        self.gromacs_version = gromacs_version
+        self.install_type = installation_type
 
-        self.valid_systems = ['daint:gpu']
+        self.valid_systems = ['daint:login', 'dom:login']
         self.modules = ['daint-gpu', 'CMake'] # system's cmake it too old
-
-        if 'gnu' in self.variant:
-            self.valid_prog_environs += ['PrgEnv-gnu']
-        elif 'intel' in self.variant:
-            self.valid_prog_environs += ['PrgEnv-intel']
-        elif 'cce' in self.variant:
-            self.valid_prog_environs += ['PrgEnv-cray']
-        elif 'pgi' in self.variant:
-            self.valid_prog_environs += ['PrgEnv-pgi']
-        else:
-            self.valid_prog_environs += ['builtin']
+        self.valid_prog_environs = [get_prgenv(variant)]
 
         mpi = 'ON' if 'mpi' in self.variant else 'OFF'
         openmp = 'ON' if 'openmp' in self.variant else 'OFF'
 
         if 'cuda' in self.variant:
             cuda = 'CUDA'
-            cuda_opts = '-DCUDA_TOOLKIT_ROOT_DIR=$CUDATOOLKIT_HOME '
             self.modules += ['cudatoolkit']
-            self.variables = {
-                'CUDA_HOME': '$CUDATOOLKIT_HOME'
-            }
+            cuda_opts = '-DCUDA_TOOLKIT_ROOT_DIR=$CUDATOOLKIT_HOME '
+            # self.variables['CUDA_HOME'] = '$CUDATOOLKIT_HOME'
         else:
             cuda = 'OFF'
             cuda_opts = ''
@@ -76,34 +135,65 @@ class CompileGROMACSMasterTest(rfm.CompileOnlyRegressionTest):
             self.modules += ['cray-fftw']
 
         if 'shared' in self.variant:
-            self.variables = {'CRAYPE_LINK_TYPE': 'dynamic'}
+            self.variables['CRAYPE_LINK_TYPE'] = 'dynamic'
             shared='-DBUILD_SHARED_LIBS=ON -DGMX_PREFER_STATIC_LIBS=OFF'
         else:
-            self.variables = {'CRAYPE_LINK_TYPE': 'static'}
+            self.variables['CRAYPE_LINK_TYPE'] = 'static'
             shared='-DGMXAPI=OFF -DBUILD_SHARED_LIBS=OFF -DGMX_PREFER_STATIC_LIBS=ON'
 
-        self.sourcesdir = 'https://gitlab.com/gromacs/gromacs.git'
+        if gromacs_version == 'master':
+            self.sourcesdir = 'https://gitlab.com/gromacs/gromacs.git'
+        else:
+            self.prebuild_cmds = download_gromacs(gromacs_version)
+
+        self.postbuild_cmds = ['make install']
+
         self.build_system = 'CMake'
+        self.build_system.sourcesdir = None
         self.build_system.builddir = 'build'
+        self.build_system.max_concurrency = 8
         self.build_system.config_opts = [
-            # '-DCMAKE_INSTALL_PREFIX=/apps/daint/UES/jenkins/7.0.UP02/gpu/easybuild/software/GROMACS/2020.3-CrayGNU-20.08-cuda ',
-            '-DCMAKE_POSITION_INDEPENDENT_CODE=ON ',
-            '-DCMAKE_VERBOSE_MAKEFILE=ON ',
-            '-DCMAKE_BUILD_TYPE=Release ',
-            f'{cuda_opts} ',
-            f'-DGMX_BUILD_OWN_FFTW={ownfftw} ',
-            f'-DGMX_OPENMP={openmp} ',
-            f'-DGMX_GPU={cuda} ',
-            '-DGMX_SIMD=AVX2_256 ',
-            '-DGMX_CYCLE_SUBCOUNTERS=ON  ',
-            f'-DGMX_MPI={mpi} ',
+            '-DCMAKE_POSITION_INDEPENDENT_CODE=ON',
+            '-DCMAKE_VERBOSE_MAKEFILE=ON',
+            '-DCMAKE_BUILD_TYPE=Release',
+            f'{cuda_opts}',
+            f'-DGMX_BUILD_OWN_FFTW={ownfftw}',
+            f'-DGMX_OPENMP={openmp}',
+            f'-DGMX_GPU={cuda}',
+            '-DGMX_CYCLE_SUBCOUNTERS=ON ',
+            f'-DGMX_MPI={mpi}',
             f'{shared}'
         ]
+        if self.current_system.name in ['daint', 'dom']:
+            self.build_system.config_opts += ['-DGMX_SIMD=AVX2_256']
+
+        self.sanity_patterns = sn.all([
+            sn.assert_found(r'.*gromacs-{0}.tar\.gz.*saved'.format(gromacs_version), self.stderr),
+            sn.assert_found(r'Enabling RDTSCP support', self.stdout),
+            sn.assert_found(r'A library with LAPACK API found', self.stdout),
+            sn.assert_found(r'Build files have been written to', self.stdout),
+            sn.assert_found(r'\[100%\] Built target gmx', self.stdout),
+            sn.assert_found(r'Install configuration: "Release"', self.stdout),
+            # sn.assert_found(r'\[100%\] Built target template', self.stdout),
+            # sn.assert_found(r'\[100%\] Built target gmxapi', self.stdout),
+            sn.assert_found(r'Install the project', self.stdout)
+            # sn.assert_lt(energy_diff, 14.9)
+        ])
 
         self.maintainers = ['VH']
-        self.tags = {'ci'}
+        self.tags = {'ci', 'ci-build', 'external-resources'}
 
-        self.sanity_patterns = sn.assert_found(r'100%', self.stdout)
+
+    @rfm.run_after('setup')
+    def config_gromacs(self):
+        install_path = get_installation_path(self)
+
+        self.build_system.config_opts += [
+            f'-DCMAKE_INSTALL_PREFIX={install_path}',
+        ]
+
+        self.variables['GROMACS_ROOT'] = f'{install_path}'
+        self.variables['PATH'] = r'$GROMACS_ROOT/bin:$PATH'
 
 
 class GromacsBaseCheck(rfm.RunOnlyRegressionTest):
@@ -139,94 +229,77 @@ class GromacsBaseCheck(rfm.RunOnlyRegressionTest):
                 'num_switches': 1
             }
         }
-        self.tags = {'scs', 'external-resources', 'ci'}
+        self.tags = {'ci', 'ci-run', 'external-resources'}
 
 
-# @rfm.required_version('>=2.19')
-# @rfm.parameterized_test(*([s, v, d]
-#                           for s in ['small', 'large']
-#                           for v in ['prod', 'maint']
-#                           for d in ['mpi+openmp+cuda+ownfftw+shared+gnu']))
-# class GromacsGPUCheck(GromacsBaseCheck):
-#     def __init__(self, scale, variant, dependency):
-#         super().__init__('md.log')
-#         self.valid_systems = ['daint:gpu', 'tiger:gpu']
-#         self.descr = 'GROMACS GPU check'
-#         self.executable_opts = ['mdrun', '-dlb yes', '-ntomp 1', '-npme 0',
-#                                 '-s herflat.tpr']
-#         self.variables = {'CRAY_CUDA_MPS': '1'}
-#         self.num_gpus_per_node = 1
-#         if scale == 'small':
-#             self.valid_systems += ['dom:gpu']
-#             self.num_tasks = 72
-#             self.num_tasks_per_node = 12
-#         else:
-#             self.num_tasks = 192
-#             self.num_tasks_per_node = 12
-
-#         self.depends_on("CompileGROMACSMasterTest_" + util.toalphanum(dependency))
-
-#         references = {
-#             'maint': {
-#                 'large': {
-#                     'daint:gpu': {'perf': (73.4, -0.10, None, 'ns/day')}
-#                 }
-#             },
-#             'prod': {
-#                 'small': {
-#                     'dom:gpu': {'perf': (37.0, -0.05, None, 'ns/day')},
-#                     'daint:gpu': {'perf': (35.0, -0.10, None, 'ns/day')}
-#                 },
-#                 'large': {
-#                     'daint:gpu': {'perf': (63.0, -0.20, None, 'ns/day')}
-#                 }
-#             },
-#         }
-#         with contextlib.suppress(KeyError):
-#             self.reference = references[variant][scale]
-
-#         self.tags |= {'maintenance' if variant == 'maint' else 'production'}
-
-
-@rfm.required_version('>=2.19')
-@rfm.parameterized_test(PARAMETERISED_TESTS)
-class GromacsCPUCheck(GromacsBaseCheck):
-    def __init__(self, variant):
+# TODO: PARAMETERISE BASED ON GROMACS CLI FLAGS and input files
+@rfm.parameterized_test(*PARAMETERISED_TESTS)
+class GromacsCheck(GromacsBaseCheck):
+    def __init__(self, variant, gromacs_version, installation_type):
         super().__init__('md.log')
         self.variant = variant
 
-        # This is limitation of the variant per partition
         self.valid_systems = ['daint:gpu','dom:gpu']
+        self.valid_prog_environs = ['builtin']
 
-        # settings for the openmp case
+        # generic single node job
         self.num_tasks = 1
-        if self.valid_systems in ['daint:gpu', 'dom:gpu']:
-            self.num_tasks_per_node = 12
-        else:
-            self.num_tasks_per_node = os.cpu_count()
+        self.num_tasks_per_node = 1
+        self.num_cpus_per_task = os.cpu_count()
 
-        self.descr = 'GROMACS CPU check'
-
-        nb_type = 'cpu'
         if 'cuda' in self.variant:
-            nb_type = 'gpu'
+            self.variables['CRAY_CUDA_MPS'] = '1'
+            self.num_gpus_per_node = 1
+
+        self.descr = 'GROMACS RunTime check'
+
+        self.reference = {
+            'dom:gpu': {'perf': (40.0, -0.05, None, 'ns/day')},
+            'daint:gpu': {'perf': (38.8, -0.10, None, 'ns/day')}
+        }
+
+        self.dep_name = re.sub(r'GromacsCheck', r'CompileGROMACSTest', self.name)
+        self.depends_on(self.dep_name, when=parent_part_env('login', get_prgenv(self.variant)))
+
+    @rfm.run_after('setup')
+    def set_num_tasks(self):
+        if self.current_partition.fullname in ['daint:gpu', 'dom:gpu']:
+            self.num_tasks = 72
+            self.num_tasks_per_node = 12
+            self.num_cpus_per_task = 1
+
+    @rfm.run_after('setup')
+    def setup_gromacs(self):
+        target = self.getdep(self.dep_name, get_prgenv(self.variant))
+
+        self.variables.update(target.variables)
+        self.modules += target.modules
+
+        self.executable = 'gmx_mpi' if 'mpi' in self.variant else 'gmx'
+        nb_type = 'gpu' if 'cuda' in self.variant else 'cpu'
         self.executable_opts = ['mdrun', '-dlb yes',
-                                f'-ntomp {self.num_tasks_per_node}', '-npme -1',
+                                f'-ntomp {self.num_cpus_per_task}', '-npme -1',
                                 f'-nb {nb_type}', '-s herflat.tpr']
 
-        if 'gnu' in variant:
-            self.valid_prog_environs += ['PrgEnv-gnu']
-        elif 'intel' in variant:
-            self.valid_prog_environs += ['PrgEnv-intel']
-        elif 'cce' in variant:
-            self.valid_prog_environs += ['PrgEnv-cray']
-        elif 'pgi' in variant:
-            self.valid_prog_environs += ['PrgEnv-pgi']
-        else:
-            self.valid_prog_environs += ['builtin']
 
-        self.dep_name = re.sub(r'GromacsCPUCheck', r'CompileGROMACSMasterTest', self.name)
-        self.depends_on(self.dep_name)
+# TODO: PARAMETERISE BASED ON GROMACS CLI FLAGS and input files
+@rfm.parameterized_test(*PARAMETERISED_TESTS)
+class GromacsIndependentCheck(GromacsBaseCheck):
+    def __init__(self, variant, gromacs_version, installation_type):
+        super().__init__('md.log')
+        self.variant = variant
+        self.gromacs_version = gromacs_version
+        self.install_type = installation_type
+
+        self.valid_systems = ['daint:gpu','dom:gpu']
+        self.valid_prog_environs = [get_prgenv(self.variant)]
+
+        # generic single node job
+        self.num_tasks = 1
+        self.num_tasks_per_node = 1
+        self.num_cpus_per_task = os.cpu_count()
+
+        self.descr = 'GROMACS RunTime check'
 
         self.reference = {
             'dom:gpu': {'perf': (40.0, -0.05, None, 'ns/day')},
@@ -234,9 +307,26 @@ class GromacsCPUCheck(GromacsBaseCheck):
         }
 
     @rfm.run_after('setup')
-    def set_executable(self):
-        target = self.getdep(self.dep_name)
-        if 'mpi' in self.variant:
-            self.executable = os.path.join(target.stagedir, 'gmx_mpi')
-        else:
-            self.executable = os.path.join(target.stagedir, 'gmx')
+    def set_num_tasks(self):
+        if self.current_partition.fullname in ['daint:gpu', 'dom:gpu']:
+            self.num_tasks = 72
+            self.num_tasks_per_node = 12
+            self.num_cpus_per_task = 1
+            if 'cuda' in self.variant:
+                self.variables['CRAY_CUDA_MPS'] = '1'
+                self.num_gpus_per_node = 1
+                self.modules = ['cudatoolkit']
+
+    # This has to be defined after set_num_tasks because it depends on self.num_cpus_per_task
+    @rfm.run_after('setup')
+    def config_gromacs(self):
+        install_path = get_installation_path(self)
+
+        self.variables['GROMACS_ROOT'] = f'{install_path}'
+        self.variables['PATH'] = r'$GROMACS_ROOT/bin:$PATH'
+
+        self.executable = 'gmx_mpi' if 'mpi' in self.variant else 'gmx'
+        nb_type = 'gpu' if 'cuda' in self.variant else 'cpu'
+        self.executable_opts = ['mdrun', '-dlb yes',
+                                f'-ntomp {self.num_cpus_per_task}', '-npme -1',
+                                f'-nb {nb_type}', f'-bonded {nb_type}', '-s herflat.tpr']

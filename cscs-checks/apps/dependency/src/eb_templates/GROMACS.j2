@@ -1,0 +1,76 @@
+# contributed by Victor Holanda (CSCS)
+easyblock = 'CMakeMake'
+
+name = 'GROMACS'
+version = '{{version}}'
+{% if version_suffix %}versionsuffix = '{{version_suffix}}'{% endif %}
+
+homepage = 'http://www.gromacs.org'
+description = """GROMACS is a versatile package to perform molecular dynamics,
+ i.e. simulate the Newtonian equations of motion for systems with hundreds to
+ millions of particles."""
+
+{% if toolchain == 'system' %}
+toolchain = SYSTEM
+{% else %}
+toolchain = {'name': '{{toolchain}}', 'version': '{{toolchain_version}}'}
+toolchainopts = {'opt': True, 'usempi': {%if mpi %}True{%else%}False{%endif%}, 'openmp': {%if openmp %}True{%else%}False{%endif%}, 'verbose': False, 'pic': True, 'dynamic': {%if shared %}True{%else%}False{%endif%}}
+{% endif %}
+
+source_urls = ['ftp://ftp.%(namelower)s.org/pub/%(namelower)s/']
+sources = [SOURCELOWER_TAR_GZ]
+
+# CMake dependency with dummy toolchain
+{% if builddependencies -%}
+
+builddependencies = [{% for pkg in builddependencies %}
+    {{pkg}}
+{%- endfor %}{% if pat %}
+    ('perftools-lite', EXTERNAL_MODULE),{% endif %}
+]
+
+{% endif -%}
+
+{% if dependencies -%}
+
+dependencies = [{% for pkg in dependencies %}
+    {{pkg}}
+{%- endfor %}{% if cuda %}
+    ('craype-accel-nvidia60', EXTERNAL_MODULE),{% endif %}
+]
+
+{% endif -%}
+
+{% if preconfigopts -%}
+
+preconfigopts = '{{preconfigopts}} && '
+
+{% else -%}
+
+preconfigopts = 'pushd ../gromacs-%(version)s && plumed-patch -p -e gromacs-%(version)s -m {%if shared %}shared{%else%}static{%endif%} && popd && '
+
+{% endif -%}
+
+local_common_configopts  = '-DCMAKE_BUILD_TYPE=Release '
+local_common_configopts += '-DGMX_CYCLE_SUBCOUNTERS=ON '
+local_common_configopts += {%if cuda %}'-DCUDA_TOOLKIT_ROOT_DIR=$CUDATOOLKIT_HOME -DGMX_GPU=CUDA '{%else%}'-DGMX_GPU=OFF '{%endif%}
+local_common_configopts += {%if ownfftw %}'-DGMX_BUILD_OWN_FFTW=ON '{%else%}'-DGMX_BUILD_OWN_FFTW=OFF '{%endif%}
+local_common_configopts += {%if shared %}'-DBUILD_SHARED_LIBS=ON -DGMX_PREFER_STATIC_LIBS=OFF '{%else%}'-DGMXAPI=OFF -DBUILD_SHARED_LIBS=OFF -DGMX_PREFER_STATIC_LIBS=ON '{%endif%}
+local_common_configopts += {%if openmp %}'-DGMX_OPENMP=ON '{%else%}'-DGMX_OPENMP=OFF '{%endif%}
+local_common_configopts += {%if simd %}'-DGMX_SIMD=AVX2_256'{%else%}'-DGMX_SIMD=auto '{%endif%}
+
+configopts = [
+    # single precision
+    {% if not pat %}local_common_configopts + ' -DGMX_MPI=OFF -DGMX_DOUBLE=OFF',
+    {%endif%}local_common_configopts + ' -DGMX_MPI=ON  -DGMX_DOUBLE=OFF',
+
+{%- if not cuda_module %}
+    # double precision
+    {% if not pat %}local_common_configopts + ' -DGMX_MPI=OFF -DGMX_DOUBLE=ON -DGMX_DEFAULT_SUFFIX=OFF -DGMX_BINARY_SUFFIX=_d     -DGMX_LIBS_SUFFIX=_d',
+    {%endif%}local_common_configopts + ' -DGMX_MPI=ON  -DGMX_DOUBLE=ON -DGMX_DEFAULT_SUFFIX=OFF -DGMX_BINARY_SUFFIX=_mpi_d -DGMX_LIBS_SUFFIX=_mpi_d',
+{%- endif %}
+]
+
+skipsteps = ['test']
+
+moduleclass = 'bio'

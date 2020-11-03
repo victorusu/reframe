@@ -1,0 +1,13 @@
+[ReFrame Setup]
+  version:           3.3-dev0 (rev: c5ba78a4)
+  command:           '/users/hvictor/github/reframe-victor/bin/reframe -c /users/hvictor/github/reframe-victor/cscs-checks/apps/dependency/gromacs-eb.py -R -C/apps/daint/UES/jenkins/7.0.UP02/reframe/software/reframe/3.1/config/cscs.py -l'
+  launched by:       hvictor@dom101
+  working directory: '/users/hvictor/github/reframe-victor/cscs-checks/apps/dependency'
+  settings file:     '/apps/daint/UES/jenkins/7.0.UP02/reframe/software/reframe/3.1/config/cscs.py'
+  check search path: (R) '/users/hvictor/github/reframe-victor/cscs-checks/apps/dependency/gromacs-eb.py'
+  stage directory:   '/users/hvictor/github/reframe-victor/cscs-checks/apps/dependency/stage'
+  output directory:  '/users/hvictor/github/reframe-victor/cscs-checks/apps/dependency/output'
+
+[List of matched checks]
+
+Found 0 check(s)

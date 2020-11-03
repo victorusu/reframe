@@ -1,0 +1,100 @@
+# contributed by
+#   Ward Poelmans <wpoely86@gmail.com>
+#   Luca Marsella (CSCS)
+#   Victor Holanda (CSCS)
+easyblock = 'ConfigureMake'
+
+name = 'PLUMED'
+version = '{{version}}'
+{% if version_suffix %}versionsuffix = '{{version_suffix}}'{% endif %}
+
+homepage = 'https://www.plumed.org'
+description = """PLUMED is an open source library for free energy calculations in molecular systems which
+ works together with some of the most popular molecular dynamics engines. Free energy calculations can be
+ performed as a function of many order parameters with a particular  focus on biological problems, using
+ state of the art methods such as metadynamics, umbrella sampling and Jarzynski-equation based steered MD.
+ The software, written in C++, can be easily interfaced with both fortran and C/C++ codes.
+"""
+
+{% if toolchain == 'system' %}
+toolchain = SYSTEM
+{% else %}
+toolchain = {'name': '{{toolchain}}', 'version': '{{toolchain_version}}'}
+toolchainopts = {'usempi': {%if mpi %}True{%else%}False{%endif%}}
+{% endif %}
+
+source_urls = ['https://github.com/%(namelower)s/plumed2/archive/']
+sources = ['v%(version)s.tar.gz']
+
+{% if builddependencies -%}
+
+builddependencies = [{% for pkg in builddependencies %}
+    {{pkg}}
+{%- endfor %}
+]
+
+{% endif -%}
+
+{% if dependencies -%}
+
+dependencies = [{% for pkg in dependencies %}
+    {{pkg}}
+{%- endfor %}
+]
+
+{% endif -%}
+
+{% if preconfigopts -%}
+
+preconfigopts = '{{preconfigopts}} && '
+
+{% else -%}
+
+preconfigopts = " CC=cc CXX=CC FC=ftn MPIEXEC=srun "
+
+{% endif -%}
+
+{% if configopts -%}
+
+configopts = '{{configopts}} && '
+
+{% else -%}
+
+# The following search options are activated by default in configure:
+# --enable-external-blas --enable-external-lapack --enable-gsl --enable-mpi --enable-python
+# Make sure to set the include and library paths accordingly: Cray wrappers set them here
+configopts = " --enable-modules=all --enable-rpath --exec-prefix=%(installdir)s "
+
+{% endif -%}
+
+{% if prebuildopts -%}
+
+prebuildopts = '{{prebuildopts}} && '
+
+{% else -%}
+
+prebuildopts = " source sourceme.sh && "
+
+{% endif -%}
+
+{% if buildopts -%}
+
+buildopts = '{{buildopts}} && '
+
+{% else -%}
+
+buildopts = " CC=cc CXX=CC FC=ftn MPIEXEC=srun "
+
+{% endif -%}
+
+sanity_check_paths = {
+    'files': ['bin/%(namelower)s', 'lib/libplumedKernel.so', 'lib/libplumed.so'],
+    'dirs': ['lib/%(namelower)s'],
+}
+
+modextrapaths = {
+    'PLUMED_KERNEL': 'lib/libplumedKernel.so',
+    'PLUMED_ROOT': 'lib/%(namelower)s',
+}
+
+moduleclass = 'chem'
