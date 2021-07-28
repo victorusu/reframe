@@ -8,40 +8,107 @@ import os
 import reframe as rfm
 import reframe.utility.sanity as sn
 
+from reframe.core.deferrable import deferrable, _DeferredExpression
 
-class NamdBaseCheck(rfm.RunOnlyRegressionTest):
-    def __init__(self, arch, scale, variant):
-        self.descr = f'NAMD check ({arch}, {variant})'
-        if self.current_system.name in ['eiger', 'pilatus']:
-            self.valid_prog_environs = ['cpeGNU']
-        else:
-            self.valid_prog_environs = ['builtin']
+@deferrable
+def invert(x):
+    return 1.0 / x
 
-        self.modules = ['NAMD']
+@rfm.simple_test
+class NAMDCPUExplorationCheck(rfm.RunOnlyRegressionTest):
+    valid_systems = ['eiger:mc', 'pilatus:mc']
+    valid_prog_environs = ['cpeGNU']
+    modules = ['NAMD']
+    executable = 'namd2'
+    time_limit = '20m'
+    #num_nodes = paramater([1, 6, 16])
+    multithreading = parameter([True, False])
+    nnodes = parameter([1, 6, 16])
+    ntasks_per_node = parameter([1, 8, 16, 128, 256])
+    affinity = parameter([True, False])
+    idlepoll = parameter([True, False])
+    threads = parameter([True, False])
+    pemap = parameter([True, False])
+    commap = parameter([True, False])
+    pppn = parameter([True, False])
+    # ppppn = parameter([True, False])
+    isomalloc = parameter([True, False])
+    #+setcpuaffinity +pemap 0-127:32.31 +commap 31-127:32'
+    maintainers = ['CB', 'LM']
+    tags = {'scs', 'external-resources'}
+    extra_resources = {
+        'switches': {
+            'num_switches': 1
+        }
+    }
 
-        # Reset sources dir relative to the SCS apps prefix
-        self.sourcesdir = os.path.join(self.current_system.resourcesdir,
-                                       'NAMD', 'prod')
-        self.executable = 'namd2'
-        self.use_multithreading = True
-        self.num_tasks_per_core = 2
+    @run_after('init')
+    def set_resources_dir(self):
+        self.sourcesdir = os.path.join(self.current_system.resourcesdir, 'NAMD', 'prod')
+        self.readonly_files = ['par_all27_prot_na.inp','stmv.namd','stmv.pdb','stmv.psf']
 
-        if scale == 'small':
-            # On Eiger a no-smp NAMD version is the default
-            if self.current_system.name in ['eiger', 'pilatus']:
-                self.num_tasks = 768
-                self.num_tasks_per_node = 128
+    @run_before('run')
+    def set_execution_opts(self):
+        self.executable_opts = []
+        if self.affinity:
+            self.executable_opts.append('+setcpuaffinity')
+
+        if self.idlepoll:
+            self.executable_opts.append('+idlepoll')
+
+        if self.isomalloc:
+            self.executable_opts.append('+isomalloc_sync')
+
+        self.use_multithreading = self.multithreading
+        if self.multithreading:
+            if self.threads:
+                self.job.options = [f'--threads-per-core=2']
+                self.num_tasks_per_core = None
             else:
-                self.num_tasks = 6
-                self.num_tasks_per_node = 1
-        else:
+                self.num_tasks_per_core = 2
             if self.current_system.name in ['eiger', 'pilatus']:
-                self.num_tasks = 2048
-                self.num_tasks_per_node = 128
+                self.max_tasks_per_node = 256
             else:
-                self.num_tasks = 16
-                self.num_tasks_per_node = 1
+                self.max_tasks_per_node = 72
+        else:
+            self.num_tasks_per_core = 1
+            if self.current_system.name in ['eiger', 'pilatus']:
+                self.max_tasks_per_node = 128
+            else:
+                self.max_tasks_per_node = 36
 
+        self.num_nodes = self.nnodes
+        self.num_tasks_per_node = self.ntasks_per_node
+
+        # skip it is not possible to accomodate the number of tasks per node
+        self.skip_if(self.num_tasks_per_node > self.max_tasks_per_node)
+
+        self.num_tasks = self.num_nodes * self.num_tasks_per_node
+        self.num_cpus_per_task = self.max_tasks_per_node // self.num_tasks_per_node
+
+        min_cpus_per_task = max(self.num_cpus_per_task-1, 1)
+        if self.pppn:
+            self.executable_opts += ['+ppn', f'{min_cpus_per_task}']
+
+        # if self.ppppn:
+        #     self.executable_opts += ['++ppn', f'{self.num_tasks_per_node}']
+
+        if self.pemap:
+            self.executable_opts += [
+                '+pemap',
+                f'0-{self.num_tasks_per_node}:{self.num_cpus_per_task}.{min_cpus_per_task}'
+            ]
+
+        if self.commap:
+            self.executable_opts += [
+                '+commap',
+                f'{min_cpus_per_task}-{self.num_tasks_per_node}:{self.num_cpus_per_task}.1'
+            ]
+
+        self.executable_opts.append('stmv.namd')
+
+    @run_after('init')
+    def set_sanity_patterns(self):
         energy = sn.avg(sn.extractall(
             r'ENERGY:([ \t]+\S+){10}[ \t]+(?P<energy>\S+)',
             self.stdout, 'energy', float)
@@ -55,72 +122,24 @@ class NamdBaseCheck(rfm.RunOnlyRegressionTest):
             sn.assert_lt(energy_diff, 2720)
         ])
 
+    @run_after('init')
+    def set_generic_perf_references(self):
+        self.reference.update({'*': {
+            'ns_days': (0, None, None, 'ns/day')
+        }})
+
+    @run_after('init')
+    def set_perf_patterns(self):
         self.perf_patterns = {
-            'days_ns': sn.avg(sn.extractall(
+            'ns_days': invert(sn.avg(sn.extractall(
                 r'Info: Benchmark time: \S+ CPUs \S+ '
                 r's/step (?P<days_ns>\S+) days/ns \S+ MB memory',
-                self.stdout, 'days_ns', float))
+                self.stdout, 'days_ns', float)))
         }
 
-        self.maintainers = ['CB', 'LM']
-        self.tags = {'scs', 'external-resources'}
-        self.extra_resources = {
-            'switches': {
-                'num_switches': 1
-            }
-        }
+@rfm.simple_test
+class NAMDCrayXCCPUExplorationCheck(NAMDCPUExplorationCheck):
+    valid_systems = ['daint:mc', 'dom:mc']
+    valid_prog_environs = ['builtin']
+    ntasks_per_node = parameter([1, 4, 9, 36, 72])
 
-
-@rfm.parameterized_test(*([s, v]
-                          for s in ['small', 'large']
-                          for v in ['maint', 'prod']))
-class NamdGPUCheck(NamdBaseCheck):
-    def __init__(self, scale, variant):
-        super().__init__('gpu', scale, variant)
-        self.valid_systems = ['daint:gpu']
-        self.executable_opts = ['+idlepoll', '+ppn 23', 'stmv.namd']
-        self.num_cpus_per_task = 24
-        self.num_gpus_per_node = 1
-        self.tags |= {'maintenance' if variant == 'maint' else 'production'}
-        if scale == 'small':
-            self.valid_systems += ['dom:gpu']
-            self.reference = {
-                'dom:gpu': {'days_ns': (0.15, None, 0.05, 'days/ns')},
-                'daint:gpu': {'days_ns': (0.15, None, 0.05, 'days/ns')}
-            }
-        else:
-            self.reference = {
-                'daint:gpu': {'days_ns': (0.07, None, 0.05, 'days/ns')}
-            }
-
-
-@rfm.parameterized_test(*([s, v]
-                          for s in ['small', 'large']
-                          for v in ['maint', 'prod']))
-class NamdCPUCheck(NamdBaseCheck):
-    def __init__(self, scale, variant):
-        super().__init__('cpu', scale, variant)
-        self.valid_systems = ['daint:mc', 'eiger:mc', 'pilatus:mc']
-        # On Eiger a no-smp NAMD version is the default
-        if self.current_system.name in ['eiger', 'pilatus']:
-            self.executable_opts = ['+idlepoll', 'stmv.namd']
-            self.num_tasks_per_core = 2
-        else:
-            self.executable_opts = ['+idlepoll', '+ppn 71', 'stmv.namd']
-            self.num_cpus_per_task = 72
-        if scale == 'small':
-            self.valid_systems += ['dom:mc']
-            self.reference = {
-                'dom:mc': {'days_ns': (0.51, None, 0.05, 'days/ns')},
-                'daint:mc': {'days_ns': (0.51, None, 0.05, 'days/ns')},
-                'eiger:mc': {'days_ns': (0.12, None, 0.05, 'days/ns')},
-                'pilatus:mc': {'days_ns': (0.12, None, 0.05, 'days/ns')},
-            }
-        else:
-            self.reference = {
-                'daint:mc': {'days_ns': (0.28, None, 0.05, 'days/ns')},
-                'eiger:mc': {'days_ns': (0.05, None, 0.05, 'days/ns')},
-                'pilatus:mc': {'days_ns': (0.05, None, 0.05, 'days/ns')}
-            }
-
-        self.tags |= {'maintenance' if variant == 'maint' else 'production'}
