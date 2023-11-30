@@ -78,7 +78,6 @@ class authselect_features_check(rfm.RunOnlyRegressionTest):
     #: :type: `List[str]`. The list should contain all the features enabled in
     #: authselect
     authselect_features = variable(typ.List[str])
-    # features = parameter([''with-faillock','with-mkhomedir','with-pwhistory'])
 
     executable = 'authselect'
     executable_opts = ['current']

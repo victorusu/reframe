@@ -71,14 +71,6 @@ class sudoers_config_check(rfm.RunOnlyRegressionTest,
     #: ebpf program tags
     sudo_defaults = variable(typ.List[str])
 
-    # #: Parameter listing the sudo default configuration that must be present
-    # #:
-    # #: :type: :class:`str`
-    # #: :values: ``['env_reset', 'ignore_dot', 'noexec',
-    # #              'requiretty', 'use_pty']``
-    # sudo_defaults = parameter(['env_reset', 'ignore_dot', 'noexec',
-    #                            'requiretty', 'use_pty'])
-
     executable = 'echo done'
     tags = {'system', 'anssi', 'sudo'}
 
